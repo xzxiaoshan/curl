@@ -12,6 +12,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.Part;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,10 +40,9 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+@Slf4j
 @SpringBootApplication
 @EnableWebMvc
 @EnableWebSecurity
@@ -70,7 +70,7 @@ public class RequestMonitor {
         @ResponseBody
         public String form (final HttpServletRequest request) throws ServletException, IOException {
             final Collection<Part> parts = request.getParts ();
-            RequestMonitor.LOGGER.info (parts.toString ());
+            RequestMonitor.log.info (parts.toString ());
             return this.logRequest (request, "");
         }
 
@@ -80,7 +80,7 @@ public class RequestMonitor {
         public String json (final HttpServletRequest request, @RequestBody (required = true) final String body) throws IOException {
             @SuppressWarnings ("unchecked")
             final Map<String, Object> map = new ObjectMapper ().readValue (body, Map.class);
-            RequestMonitor.LOGGER.info (map.toString ());
+            RequestMonitor.log.info (map.toString ());
             return this.logRequest (request, body);
         }
 
@@ -89,7 +89,7 @@ public class RequestMonitor {
         @ResponseBody
         public String tooLong () throws InterruptedException {
             Thread.sleep (1000);
-            RequestMonitor.LOGGER.info ("Finally !");
+            RequestMonitor.log.info ("Finally !");
             return "...Finally.";
         }
 
@@ -103,7 +103,7 @@ public class RequestMonitor {
         }
 
         private String logRequest (final HttpServletRequest request, final String body) {
-            final StringBuffer curlLog = new StringBuffer ("curl");
+            final StringBuilder curlLog = new StringBuilder("curl");
 
             curlLog.append (" -k ");
             curlLog.append ("-E src/test/resources/clients/libe/libe.pem");
@@ -129,9 +129,9 @@ public class RequestMonitor {
 
             curlLog.append (" ");
             curlLog.append (" '");
-            curlLog.append (this.serverLocation (request) + request.getServletPath () + (request.getQueryString () == null ? "" : "?" + request.getQueryString ()));
+            curlLog.append(this.serverLocation(request)).append(request.getServletPath()).append(request.getQueryString() == null ? "" : "?" + request.getQueryString());
             curlLog.append ("'");
-            RequestMonitor.LOGGER.info (curlLog.toString ());
+            RequestMonitor.log.info (curlLog.toString ());
             return curlLog.toString ();
         }
 
@@ -185,8 +185,6 @@ public class RequestMonitor {
     }
 
     private static ConfigurableApplicationContext context;
-    private static final Logger                   LOGGER = LoggerFactory.getLogger (RequestMonitor.class);
-
     private static int                            managementPort;
 
     private static int                            port;

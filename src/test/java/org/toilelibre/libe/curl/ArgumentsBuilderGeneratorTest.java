@@ -8,13 +8,14 @@ import javassist.NotFoundException;
 import org.apache.commons.cli.Option;
 import org.apache.commons.io.IOUtils;
 import org.junit.Test;
-import org.toilelibre.libe.curl.Curl.CurlArgumentsBuilder;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -27,6 +28,8 @@ import static java.util.stream.Collectors.joining;
 
 public class ArgumentsBuilderGeneratorTest {
 
+    private final StringBuilder curlCommand = new StringBuilder ("curl ");
+
     private static final Pattern      WORD_SEPARATOR = Pattern.compile ("-([a-zA-Z])");
     private static final Pattern      DIGITS_PATTERN = Pattern.compile ("-([0-9]+)");
     private static final List<String> DIGITS         = Arrays.asList ("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine");
@@ -34,7 +37,7 @@ public class ArgumentsBuilderGeneratorTest {
     @Test
     public void addOptionsToArgumentsBuilder () throws NotFoundException, CannotCompileException, IOException {
         final ClassPool pool = ClassPool.getDefault ();
-        final CtClass argsBuilderClass = pool.get (CurlArgumentsBuilder.class.getName ());
+        final CtClass argsBuilderClass = pool.get (ArgumentsBuilderGeneratorTest.class.getName ());
         final CtClass stringType = pool.get (String.class.getName ());
         argsBuilderClass.defrost ();
 
@@ -98,7 +101,7 @@ public class ArgumentsBuilderGeneratorTest {
                 .getProtectionDomain ().getCodeSource ().getLocation ().getFile ()).getParentFile ().getParentFile ()
                 .listFiles ())).filter (f -> "README.md".equalsIgnoreCase (f.getName ()))
                 .findFirst ().orElseThrow (() -> new FileNotFoundException ("README.md"));
-        final String readmeContent = IOUtils.toString (new FileInputStream (readme));
+        final String readmeContent = IOUtils.toString (Files.newInputStream(readme.toPath()), Charset.defaultCharset());
 
         final String newReadmeContent = Pattern.compile (
                 "Supported arguments \\(so far\\) :")

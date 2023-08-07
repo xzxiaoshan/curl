@@ -10,7 +10,10 @@ import java.util.stream.*;
 import static java.lang.Integer.*;
 import static java.util.Optional.*;
 
-final class ReadArguments {
+/**
+ * 参数读取
+ */
+public final class ReadArguments {
     private static final Pattern PLACEHOLDER_REGEX = Pattern.compile ("^\\$curl_placeholder_[0-9]+$");
     private static final Map<String, List<String>> CACHED_ARGS_MATCHES = new HashMap<> ();
 

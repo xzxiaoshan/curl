@@ -1,17 +1,29 @@
 package org.toilelibre.libe.curl;
 
-import org.toilelibre.libe.curl.Curl.*;
-import org.toilelibre.libe.curl.DerReader.*;
-import org.toilelibre.libe.curl.PemReader.*;
+import org.toilelibre.libe.curl.DerReader.Asn1Object;
+import org.toilelibre.libe.curl.PemReader.PemObject;
 
-import java.io.*;
-import java.security.*;
-import java.security.cert.*;
-import java.security.spec.*;
-import java.util.*;
-import java.util.logging.*;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.security.KeyFactory;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.KeySpec;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-enum CertFormat {
+public enum CertFormat {
 
     DER ( (kind, content, passwordAsCharArray) -> {
         try {
@@ -96,7 +108,8 @@ enum CertFormat {
     }
 
     @SuppressWarnings ("unchecked")
-    <T> List<T> generateCredentialsFromFileAndPassword (final Kind kind, final byte [] content, final char [] passwordAsCharArray) {
+    public <T> List<T> generateCredentialsFromFileAndPassword (final Kind kind, final byte [] content,
+                                                         final char [] passwordAsCharArray) {
         return (List<T>) this.generator.generate (kind, content, passwordAsCharArray);
     }
 
@@ -109,7 +122,7 @@ enum CertFormat {
         Object generate (Kind kind, byte [] content, char [] passwordAsCharArray);
     }
 
-    enum Kind {
+    public enum Kind {
         CERTIFICATE, PRIVATE_KEY;
         static Kind fromValue (final String value) {
             try {

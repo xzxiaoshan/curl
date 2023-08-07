@@ -15,7 +15,7 @@ Setup with maven
 
 Usage
 ```java
-    org.apache.http.HttpResponse org.toilelibre.libe.curl.Curl.curl (String curlParams);
+    org.toilelibre.libe.curl.http.Response org.toilelibre.libe.curl.Curl.curl (String curlParams);
     String org.toilelibre.libe.curl.Curl.$ (String curlCommand); //Returns responseBody
 ```
 
@@ -44,14 +44,14 @@ Examples :
 It also works with a builder
 
 ```java
-    HttpResponse response = curl().k().xUpperCase("POST").d("{\"var1\":\"val1\",\"var2\":\"val2\"}").run("https://localhost:8443/public/json");
+    Response response = curl().k().xUpperCase("POST").d("{\"var1\":\"val1\",\"var2\":\"val2\"}").run("https://localhost:8443/public/json");
 ```
 
 How to get Google Homepage with this lib :
 ```java
     public String getGoogleHomepage (){
         //-L is passed to follow the redirects
-        return curl ().lUpperCase ().$ ("https://www.google.com/");
+        return curl ().lUpperCase ().$ ("https://www.baidu.com/");
     }
 ```
 
@@ -68,7 +68,7 @@ You can also specify three additional curl options using jvm code :
 curl()
    .javaOptions(with().interceptor(((request, responseSupplier) -> {
        LOGGER.info("I log something before the call");
-       HttpResponse response = responseSupplier.get();
+       Response response = responseSupplier.get();
        LOGGER.info("I log something after the call, status code is {}",
        response.getStatusLine().getStatusCode());
        return response;})).httpClientBuilder(HttpClients.custom()
@@ -113,4 +113,4 @@ Supported arguments (so far) :
 | k             | insecure        | false             | trust insecure                                                                                                                                              |
 | A             | user-agent      | true              | user agent                                                                                                                                                  |
 | V             | version         | false             | get the version of this library                                                                                                                             |
-| interceptor   | interceptor     | true              | interceptor field or method (syntax is classname::fieldname). Must be a BiFunction<HttpRequest, Supplier< HttpResponse>, HttpResponse> or will be discarded |
+| interceptor   | interceptor     | true              | interceptor field or method (syntax is classname::fieldname). Must be a BiFunction<Request, Supplier< Response>, Response> or will be discarded |

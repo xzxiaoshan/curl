@@ -6,7 +6,7 @@ import java.util.*;
 /**
  * A generic PEM reader, based on the format outlined in RFC 1421
  */
-final class PemReader extends BufferedReader {
+public final class PemReader extends BufferedReader {
 
     static class PemObject {
 

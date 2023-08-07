@@ -1,61 +1,73 @@
 package org.toilelibre.libe.curl;
 
-import org.apache.commons.cli.*;
-import org.apache.http.*;
-import org.toilelibre.libe.curl.Curl.*;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.cli.CommandLine;
+import org.toilelibre.libe.curl.http.Response;
 
-import java.io.*;
-import java.util.logging.*;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.logging.Logger;
 
-final class AfterResponse {
+/**
+ * 请求响应结果后置处理
+ *
+ * @author shanhy
+ * @date 2023-07-31 17:51
+ */
+@Slf4j
+public class AfterResponse {
 
-    private static Logger LOGGER = Logger.getLogger (AfterResponse.class.getName ());
+    private static final Logger LOGGER = Logger.getLogger(AfterResponse.class.getName());
 
-    static void handle (final CommandLine commandLine, final HttpResponse response) {
-
-        if (!commandLine.hasOption (Arguments.OUTPUT.getOpt ())) return;
-
-        File file = createTheOutputFile (commandLine.getOptionValue (Arguments.OUTPUT.getOpt ()));
-        FileOutputStream outputStream = getOutputStreamFromFile (file);
-        writeTheResponseEntityInsideStream (outputStream, response.getEntity ());
+    public void handle(final CommandLine commandLine, final Response response) {
+        this.handleOutput(commandLine, response.body());
     }
 
-    private static void writeTheResponseEntityInsideStream (FileOutputStream outputStream, HttpEntity httpEntity) {
+    private void handleOutput(final CommandLine commandLine, final Response.Body body){
+        // 处理是否将结果写入到文件
+        if (!commandLine.hasOption(Arguments.OUTPUT.getOpt())) return;
+        File file = createTheOutputFile(commandLine.getOptionValue(Arguments.OUTPUT.getOpt()));
+        FileOutputStream outputStream = getOutputStreamFromFile(file);
+        writeTheResponseEntityInsideStream(outputStream, body);
+    }
+
+    private void writeTheResponseEntityInsideStream(FileOutputStream outputStream, Response.Body body) {
         try {
-            if (httpEntity.getContentLength () >= 0) {
-                outputStream.write (IOUtils.toByteArray (httpEntity.getContent (), (int) httpEntity.getContentLength ()));
-            }
-            else {
-                outputStream.write (IOUtils.toByteArray (httpEntity.getContent ()));
+            if (body.length() >= 0) {
+                outputStream.write(IOUtils.toByteArray(body.asInputStream(), (int)body.length()));
+            } else {
+                outputStream.write(IOUtils.toByteArray(body.asInputStream()));
             }
         } catch (final IOException e) {
-            throw new CurlException (e);
+            throw new CurlException(e);
         } finally {
             try {
-                outputStream.close ();
+                outputStream.close();
             } catch (IOException e) {
-                LOGGER.log (Level.WARNING, "Cannot flush the file in output");
+                LOGGER.warning("Cannot flush the file in output");
             }
         }
     }
 
-    private static FileOutputStream getOutputStreamFromFile (File file) {
+    private FileOutputStream getOutputStreamFromFile(File file) {
         try {
-            return new FileOutputStream (file);
+            return new FileOutputStream(file);
         } catch (final FileNotFoundException e) {
-            throw new CurlException (e);
+            throw new CurlException(e);
         }
     }
 
-    private static File createTheOutputFile (String fileName) {
-        final File file = new File (fileName);
+    private File createTheOutputFile(String fileName) {
+        final File file = new File(fileName);
         try {
-            if (!file.createNewFile ()){
-                throw new CurlException (new IOException ("Could not create the file. Does it already exist ?"));
+            if (!file.createNewFile()) {
+                throw new CurlException(new IOException("Could not create the file. Does it already exist ?"));
             }
         } catch (IOException e) {
-            LOGGER.log (Level.WARNING, "Cannot flush the output file");
-            throw new CurlException (e);
+            LOGGER.warning("Cannot flush the output file");
+            throw new CurlException(e);
         }
         return file;
     }
