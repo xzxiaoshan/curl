@@ -16,7 +16,7 @@ import static org.toilelibre.libe.curl.VersionDisplay.stopAndDisplayVersionIfThe
 /**
  * Curl执行入口类
  */
-public final class Curl {
+public class Curl {
 
     private final Client httpClient;
 
