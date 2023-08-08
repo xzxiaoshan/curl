@@ -177,7 +177,9 @@ public class HttpClientProvider extends AbstractClient {
             HttpMethod httpMethod = request.getMethod();
             RequestBuilder requestBuilder = RequestBuilder.create(httpMethod.name()).setUri(new URI(request.url()));
 
-            if (asList(HttpMethod.DELETE, HttpMethod.PATCH, HttpMethod.POST, HttpMethod.PUT).contains(httpMethod) && request.body() != null) {
+            // 即便是GET请求，如果用户还是设定了data，依然正常传递data，这里注释掉原来对Method的判断
+//            if (asList(HttpMethod.DELETE, HttpMethod.PATCH, HttpMethod.POST, HttpMethod.PUT).contains(httpMethod) && request.body() != null) {
+            if (request.body() != null) {
                 HttpEntity httpEntity;
                 if (asList(RequestBodyType.DATA, RequestBodyType.DATA_BINARY, RequestBodyType.DATA_URLENCODED).contains(request.body().getBodyType())) {
                     DataBody dataBody = (DataBody) request.body();

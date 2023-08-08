@@ -54,10 +54,11 @@ public class RequestProvider {
         Map<String, List<String>> headers = getHeaders(commandLine, proxy, client.defaultUserAgent());
         Request.Options options = getOptions(commandLine, proxy);
 
-        RequestBody<?> body = null;
-        if (asList("DELETE", "PATCH", "POST", "PUT").contains(method.toUpperCase())) {
+        RequestBody<?> body;
+        // 即便是GET请求，如果用户还是设定了data，依然正常传递data，这里注释掉原来对Method的判断
+//        if (asList("DELETE", "PATCH", "POST", "PUT").contains(method.toUpperCase())) {
             body = getData(commandLine);
-        }
+//        }
 
         return Request.create(HttpMethod.valueOf(method), uri, headers, body, options);
 
