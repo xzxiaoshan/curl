@@ -177,7 +177,7 @@ public class HttpClientProvider extends AbstractClient {
             HttpMethod httpMethod = request.getMethod();
             RequestBuilder requestBuilder = RequestBuilder.create(httpMethod.name()).setUri(new URI(request.url()));
 
-            if (asList(HttpMethod.DELETE, HttpMethod.PATCH, HttpMethod.POST, HttpMethod.PUT).contains(httpMethod)) {
+            if (asList(HttpMethod.DELETE, HttpMethod.PATCH, HttpMethod.POST, HttpMethod.PUT).contains(httpMethod) && request.body() != null) {
                 HttpEntity httpEntity;
                 if (asList(RequestBodyType.DATA, RequestBodyType.DATA_BINARY, RequestBodyType.DATA_URLENCODED).contains(request.body().getBodyType())) {
                     DataBody dataBody = (DataBody) request.body();
