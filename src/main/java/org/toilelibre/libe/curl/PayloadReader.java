@@ -77,11 +77,12 @@ public final class PayloadReader {
             }
         });
 
-        final List<String> fileForms = stream(forms).filter(arg -> IOUtils.isFile(arg.substring(arg.indexOf('=') + 1))).collect(toList());
+        final List<String> fileForms =
+                stream(forms).filter(arg -> IOUtils.isFile(arg.substring(arg.indexOf('=') + 1))).collect(toList());
         final List<String> textForms = stream(forms).filter(form -> !fileForms.contains(form)).collect(toList());
 
         FormBody formBody = new FormBody();
-        fileForms.forEach(arg -> formBody.addFilePart(arg.substring(0, arg.indexOf('=')), arg.substring(arg.indexOf("=@") + 2)));
+        fileForms.forEach(arg -> formBody.addFilePart(arg.substring(0, arg.indexOf('=')), arg.substring(arg.indexOf("=@") + 2).replaceAll("\"","")));
         textForms.forEach(arg -> formBody.addTextPart(arg.substring(0, arg.indexOf('=')), arg.substring(arg.indexOf('=') + 1)));
 
         return formBody;

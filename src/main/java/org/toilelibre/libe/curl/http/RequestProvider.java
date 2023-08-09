@@ -3,19 +3,19 @@ package org.toilelibre.libe.curl.http;
 import org.apache.commons.cli.CommandLine;
 import org.toilelibre.libe.curl.Arguments;
 import org.toilelibre.libe.curl.CurlException;
+import org.toilelibre.libe.curl.PayloadReader;
 import org.toilelibre.libe.curl.SSLOption;
 import org.toilelibre.libe.curl.Utils;
+import org.toilelibre.libe.curl.client.Client;
 import org.toilelibre.libe.curl.http.auth.AuthCredentials;
 import org.toilelibre.libe.curl.http.auth.BasicAuthCredentials;
 import org.toilelibre.libe.curl.http.auth.NTLMAuthCredentials;
-import org.toilelibre.libe.curl.client.Client;
 
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,7 +27,6 @@ import static java.util.Arrays.asList;
 import static java.util.Arrays.stream;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toMap;
-import static org.toilelibre.libe.curl.PayloadReader.getData;
 
 /**
  * 请求对象构造
@@ -57,7 +56,7 @@ public class RequestProvider {
         RequestBody<?> body;
         // 即便是GET请求，如果用户还是设定了data，依然正常传递data，这里注释掉原来对Method的判断
 //        if (asList("DELETE", "PATCH", "POST", "PUT").contains(method.toUpperCase())) {
-            body = getData(commandLine);
+            body = PayloadReader.getData(commandLine);
 //        }
 
         return Request.create(HttpMethod.valueOf(method), uri, headers, body, options);
@@ -111,6 +110,11 @@ public class RequestProvider {
         }
 
         // curl 在处理 POST 请求时，如没有明确指定 Content-Type，则默认为 application/x-www-form-urlencoded
+        if (commandLine.hasOption(Arguments.DATA.getOpt()) && !headersMap.containsKey(Utils.CONTENT_TYPE)) {
+            headersMap.computeIfAbsent(Utils.CONTENT_TYPE, k -> new ArrayList<>()).add("application/x-www-form-urlencoded");
+        }
+
+        // 表单附件上传，且未明确设定Content-Type，则自动生成
         if (commandLine.hasOption(Arguments.DATA.getOpt()) && !headersMap.containsKey(Utils.CONTENT_TYPE)) {
             headersMap.computeIfAbsent(Utils.CONTENT_TYPE, k -> new ArrayList<>()).add("application/x-www-form-urlencoded");
         }

@@ -26,6 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -40,6 +41,9 @@ import static java.lang.String.format;
  * @date 2023-07-25 16:37
  */
 public final class Utils {
+
+    private static final char[] MULTIPART_CHARS =
+            "-_1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray();
 
     /**
      * The HTTP User-Agent header field name.
@@ -332,4 +336,20 @@ public final class Utils {
     public static String defaultIfEmpty(String value, String defaultValue) {
         return isBlank(value) ? defaultValue : value;
     }
+
+    /**
+     * Generate Boundary (use by content-type)
+     *
+     * @return value of boundary
+     */
+    public static  String generateBoundary() {
+        final StringBuilder buffer = new StringBuilder();
+        final Random rand = new Random();
+        final int count = rand.nextInt(11) + 30; // a random size from 30 to 40
+        for (int i = 0; i < count; i++) {
+            buffer.append(MULTIPART_CHARS[rand.nextInt(MULTIPART_CHARS.length)]);
+        }
+        return buffer.toString();
+    }
+
 }

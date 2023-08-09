@@ -159,7 +159,7 @@ public final class IOUtils {
             return false;
         }
 
-        final File file = new File(fileName.substring(1).trim());
+        final File file = new File(fileName.substring(1).trim().replaceAll("\"",""));
         return file.exists() && file.isFile();
     }
 
