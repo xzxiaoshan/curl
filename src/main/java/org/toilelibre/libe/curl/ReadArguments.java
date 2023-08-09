@@ -39,6 +39,13 @@ public final class ReadArguments {
         return commandLine;
     }
 
+    /**
+     * 正则匹配返回匹配的字符串集合
+     *
+     * @param regex 正则对象
+     * @param input 输入值
+     * @return 匹配的正则字符串集合
+     */
     private static List<String> asMatches (Pattern regex, String input) {
         Matcher matcher = regex.matcher (input);
         List<String> result = new ArrayList<> ();
