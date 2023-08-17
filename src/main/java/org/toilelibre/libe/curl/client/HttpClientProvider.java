@@ -153,14 +153,6 @@ public class HttpClientProvider extends AbstractClient {
      * @throws CurlException
      */
     private HttpClient getHttpClient(final Request request) throws CurlException {
-        if (!request.options().isCompressed()) {
-            httpClientBuilder.disableContentCompression();
-        }
-
-        if (!request.options().isFollowRedirects()) {
-            httpClientBuilder.disableRedirectHandling();
-        }
-
         handleSSL(request.options().getSslOptions());
         return httpClientBuilder.build();
     }
@@ -234,6 +226,8 @@ public class HttpClientProvider extends AbstractClient {
         if (options.maxTimeout() > 0) {
             requestConfig.setSocketTimeout(options.maxTimeout());
         }
+        requestConfig.setContentCompressionEnabled(request.options().isCompressed());
+        requestConfig.setRedirectsEnabled(request.options().isFollowRedirects());
         requestBuilder.setConfig(requestConfig.build());
     }
 

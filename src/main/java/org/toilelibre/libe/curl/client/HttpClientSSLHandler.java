@@ -152,7 +152,7 @@ public final class HttpClientSSLHandler {
     }
 
     private String getProtocol(final Map<SSLOption, List<String>> sslOptions) {
-        if(sslOptions != null) {
+        if (sslOptions != null) {
             if (sslOptions.containsKey(SSLOption.TLS_V1)) {
                 return "TLSv1";
             }
