@@ -122,25 +122,25 @@
                     <goals>deploy</goals>
                 </configuration>
             </plugin>
-			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>build-helper-maven-plugin</artifactId>
-				<version>3.4.0</version>
-				<executions>
-					<execution>
-						<id>timestamp-property</id>
-						<goals>
-							<goal>timestamp-property</goal>
-						</goals>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.4.0</version>
+                <executions>
+                    <execution>
+                        <id>timestamp-property</id>
+                        <goals>
+                            <goal>timestamp-property</goal>
+                        </goals>
                         <configuration>
                             <name>current.time</name>
                             <pattern>yyyy-MM-dd HH:mm:ss</pattern>
                             <timeZone>GMT+8</timeZone>
                             <locale>zh_CN</locale>
                         </configuration>
-					</execution>
-				</executions>
-			</plugin>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-antrun-plugin</artifactId>
@@ -187,6 +187,7 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
+            <scope>provided</scope>
             <version>1.2.10</version>
         </dependency>
 
@@ -195,10 +196,17 @@
             <artifactId>commons-cli</artifactId>
             <version>1.5.0</version>
         </dependency>
+
+        <!--        <dependency>-->
+        <!--            <groupId>org.apache.httpcomponents</groupId>-->
+        <!--            <artifactId>httpmime</artifactId>-->
+        <!--            <version>4.5.13</version>-->
+        <!--            <scope>provided</scope>-->
+        <!--        </dependency>-->
         <dependency>
-            <groupId>org.apache.httpcomponents</groupId>
-            <artifactId>httpmime</artifactId>
-            <version>4.5.13</version>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+            <version>5.3.1</version>
             <scope>provided</scope>
         </dependency>
         <dependency>

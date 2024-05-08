@@ -100,7 +100,7 @@ public enum CertFormat {
         }
     });
 
-    private static Logger LOGGER = Logger.getLogger (AfterResponse.class.getName ());
+    private static Logger LOGGER = Logger.getLogger (OutputHandler.class.getName ());
     private KeystoreFromFileGenerator generator;
 
     CertFormat (final KeystoreFromFileGenerator generator1) {

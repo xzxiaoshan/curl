@@ -21,7 +21,7 @@ public class CurlWebTest {
     public void proxyWithAuthentication () throws IOException {
         Response response = Curl.create().curl ("http://httpbin.org/get -x http://204.133.187.66:3128 -U " +
                 "user:password");
-        String body = IOUtils.toString (response.body().asInputStream());
+        String body = response.body().getContentString();
         Assert.assertTrue (body.contains ("Host\": \"httpbin.org\""));
         Assert.assertTrue (Pattern.compile ("\"origin\": \"[a-zA-Z0-9.]+, [0-9.]+\"").matcher (body).find ());
         Assert.assertFalse (body.contains ("Proxy-Authorization"));

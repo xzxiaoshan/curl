@@ -25,9 +25,9 @@ public class ProxyInfo {
             this.password = userString.substring(userString.indexOf(':') + 1);
         }
         this.host = hostString.substring(0, hostString.indexOf(':'));
-        String port = hostString.substring(hostString.indexOf(':') + 1);
-        if (port.length() > 0)
-            this.port = Integer.parseInt(port);
+        String portStr = hostString.substring(hostString.indexOf(':') + 1);
+        if (!portStr.isEmpty())
+            this.port = Integer.parseInt(portStr);
     }
 
     public String getUserString() {
@@ -39,6 +39,11 @@ public class ProxyInfo {
         return this.host.concat(":").concat(String.valueOf(port));
     }
 
+    /**
+     * 重写toString必须包含所有字段信息，其他地方有使用，用于重复判断
+     *
+     * @return str
+     */
     @Override
     public String toString() {
         String userStr = getUserString();

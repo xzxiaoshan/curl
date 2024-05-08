@@ -1,5 +1,6 @@
 package org.toilelibre.libe.curl;
 
+import lombok.Getter;
 import org.toilelibre.libe.curl.client.Client;
 import org.toilelibre.libe.curl.http.Request;
 import org.toilelibre.libe.curl.http.Response;
@@ -15,59 +16,31 @@ import java.util.function.Supplier;
  * @author shanhy
  * @date 2023-08-02 14:10
  */
-public class CurlJavaOptions {
+@Getter
+public class CurlJavaOptions<T> {
 
-    private final List<BiFunction<Request, Supplier<Response>, Response>> interceptors;
+    private final List<BiFunction<Request, Supplier<? extends T>, ? extends T>> interceptors;
     private final List<String> placeHolders;
     private final Client httpClient;
 
-    private CurlJavaOptions(Builder builder) {
-        this.interceptors = builder.interceptors;
-        this.placeHolders = builder.placeHolders;
-        this.httpClient = builder.httpClient;
+    public CurlJavaOptions(List<BiFunction<Request, Supplier<? extends T>, ? extends T>> interceptors, List<String> placeHolders, Client httpClient) {
+        this.interceptors = interceptors;
+        this.placeHolders = placeHolders;
+        this.httpClient = httpClient;
     }
 
-    public static Builder with() {
-        return new Builder();
+    public CurlJavaOptions() {
+        this(new ArrayList<>(), new ArrayList<>(), null);
     }
 
-    public List<BiFunction<Request, Supplier<Response>, Response>> getInterceptors() {
-        return interceptors;
+
+    public CurlJavaOptions<T> addInterceptor(BiFunction<Request, Supplier<? extends T>, ? extends T> interceptors) {
+        this.interceptors.add(interceptors);
+        return this;
     }
 
-    public List<String> getPlaceHolders() {
-        return placeHolders;
-    }
-
-    public Client getHttpClient() {
-        return this.httpClient;
-    }
-
-    public static final class Builder {
-        private final List<BiFunction<Request, Supplier<Response>, Response>> interceptors = new ArrayList<>();
-        private List<String> placeHolders;
-        private Client httpClient;
-
-        private Builder() {
-        }
-
-        public Builder interceptor(BiFunction<Request, Supplier<Response>, Response> val) {
-            interceptors.add(val);
-            return this;
-        }
-
-        public Builder placeHolders(List<String> val) {
-            placeHolders = val;
-            return this;
-        }
-
-        public Builder httpClient(Client httpClient) {
-            this.httpClient = httpClient;
-            return this;
-        }
-
-        public CurlJavaOptions build() {
-            return new CurlJavaOptions(this);
-        }
+    public CurlJavaOptions<T> addPlaceHolders(List<String> placeHolders) {
+        this.placeHolders.addAll(placeHolders);
+        return this;
     }
 }

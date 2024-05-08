@@ -1,10 +1,11 @@
 package org.toilelibre.libe.curl.http;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.toilelibre.libe.curl.SSLOption;
 import org.toilelibre.libe.curl.Utils;
 import org.toilelibre.libe.curl.http.auth.AuthCredentials;
 
-import java.net.HttpURLConnection;
 import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.List;
@@ -19,10 +20,25 @@ import java.util.Map;
  */
 public final class Request {
 
+    /**
+     * httpMethod
+     */
     private final HttpMethod httpMethod;
+    /**
+     * url
+     */
     private final String url;
+    /**
+     * headers
+     */
     private final Map<String, List<String>> headers;
+    /**
+     * body
+     */
     private final RequestBody<?> body;
+    /**
+     * options
+     */
     private final Options options;
 
     /**
@@ -49,6 +65,7 @@ public final class Request {
      * @param url     for the request.
      * @param headers for the request.
      * @param body    for the request, optional.
+     * @param options options
      */
     Request(HttpMethod method,
             String url,
@@ -82,11 +99,12 @@ public final class Request {
     /**
      * Request Header (first by name).
      *
+     * @param name name
      * @return the request headers.
      */
     public String getFirstHeader(final String name) {
         List<String> headerValues = this.headers.get(name);
-        return headerValues != null && headerValues.size() > 0 ? headerValues.get(0) : null;
+        return headerValues != null && !headerValues.isEmpty() ? headerValues.get(0) : null;
     }
 
 
@@ -149,10 +167,20 @@ public final class Request {
         return this.getCharset();
     }
 
+    /**
+     * body
+     *
+     * @return RequestBody
+     */
     public RequestBody<?> body() {
         return body;
     }
 
+    /**
+     * isBinary
+     *
+     * @return data
+     */
     public boolean isBinary() {
         if (body instanceof DataBody)
             return ((DataBody) body).isBinary();
@@ -194,26 +222,90 @@ public final class Request {
         return builder.toString();
     }
 
+    /**
+     * getMethod
+     *
+     * @return HttpMethod
+     */
     public HttpMethod getMethod() {
         return this.httpMethod();
     }
 
     /**
      * Controls the per-request settings currently required to be implemented by all {@link com.sun.security.ntlm.Client
-     * clients}
+     * clients}*
+     *
+     * @author 单红宇
+     * @date 2024-04-20 15:07:33
      */
     public static class Options {
 
-        // millisecond
+        /**
+         * connectTimeout, millisecond
+         * -- SETTER --
+         * setConnectTimeout
+         */
+        @Setter
         private int connectTimeout;
 
-        // millisecond
+        /**
+         * maxTimeout, millisecond
+         * -- SETTER --
+         * setMaxTimeout
+         */
+        @Setter
         private int maxTimeout;
+        /**
+         * followRedirects
+         * -- GETTER --
+         * Defaults to true.
+         * tells the client to not follow the redirections.
+         */
+        @Setter
+        @Getter
         private boolean followRedirects;
-        private ProxyInfo proxy;
-        private AuthCredentials authCredentials;
-        // Request compressed response (using deflate or gzip)
+        /**
+         * Request compressed response (using deflate or gzip)
+         * -- GETTER --
+         * isCompressed
+         * <p>
+         * <p>
+         * -- SETTER --
+         * setCompressed
+         */
+        @Setter
+        @Getter
         private boolean compressed;
+        /**
+         * proxy
+         * -- SETTER --
+         * setProxy
+         * <p>
+         * <p>
+         * -- GETTER --
+         * getProxy
+         */
+        @Getter
+        @Setter
+        private ProxyInfo proxy;
+        /**
+         * authCredentials
+         * -- GETTER --
+         * getAuthCredentials
+         * <p>
+         * <p>
+         * -- SETTER --
+         * setAuthCredentials
+         */
+        @Setter
+        @Getter
+        private AuthCredentials authCredentials;
+        /**
+         * sslOptions
+         * -- GETTER --
+         * getSslOptions
+         */
+        @Getter
         private Map<SSLOption, List<String>> sslOptions;
 
         /**
@@ -264,15 +356,6 @@ public final class Request {
         }
 
         /**
-         * Defaults to true. {@code false} tells the client to not follow the redirections.
-         *
-         * @see HttpURLConnection#getFollowRedirects()
-         */
-        public boolean isFollowRedirects() {
-            return followRedirects;
-        }
-
-        /**
          * Connect Timeout Value.
          *
          * @return current timeout value.
@@ -290,49 +373,15 @@ public final class Request {
             return maxTimeout;
         }
 
-        public void setConnectTimeout(int connectTimeout) {
-            this.connectTimeout = connectTimeout;
-        }
-
-        public void setMaxTimeout(int maxTimeout) {
-            this.maxTimeout = maxTimeout;
-        }
-
-        public void setFollowRedirects(boolean followRedirects) {
-            this.followRedirects = followRedirects;
-        }
-
-        public void setProxy(ProxyInfo proxy) {
-            this.proxy = proxy;
-        }
-
-        public ProxyInfo getProxy() {
-            return proxy;
-        }
-
-        public AuthCredentials getAuthCredentials() {
-            return authCredentials;
-        }
-
-        public void setAuthCredentials(AuthCredentials authCredentials) {
-            this.authCredentials = authCredentials;
-        }
-
-        public boolean isCompressed() {
-            return compressed;
-        }
-
-        public void setCompressed(boolean compressed) {
-            this.compressed = compressed;
-        }
-
+        /**
+         * setSSLOptions
+         *
+         * @param sslOptions sslOptions
+         */
         public void setSSLOptions(Map<SSLOption, List<String>> sslOptions) {
             this.sslOptions = sslOptions;
         }
 
-        public Map<SSLOption, List<String>> getSslOptions() {
-            return sslOptions;
-        }
     }
 
 }

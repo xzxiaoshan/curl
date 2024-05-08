@@ -51,6 +51,42 @@ public class RequestMonitor {
     @RequestMapping ("/**")
     static class MonitorController {
 
+//
+//        /**
+//         * 托底的方法，请求一个URL时，如果URL没有定义，则都会走到该方法中
+//         *
+//         * @param request request
+//         * @param body    body
+//         * @return curl字符串
+//         */
+//        @RequestMapping (produces = "text/plain;charset=utf-8")
+//        @ResponseStatus (code = HttpStatus.OK)
+//        @ResponseBody
+//        public String receiveRequest (final HttpServletRequest request, @RequestBody (required = false) final String body) {
+//            return this.logRequest (request, body);
+//        }
+
+        @RequestMapping (value = "/public", produces = "text/plain;charset=utf-8")
+        @ResponseStatus (code = HttpStatus.OK)
+        @ResponseBody
+        public String publicRequest (final HttpServletRequest request, @RequestBody (required = false) final String body) {
+            return this.logRequest (request, body);
+        }
+
+        @RequestMapping (value = "/public/curlCommand1", produces = "text/plain;charset=utf-8")
+        @ResponseStatus (code = HttpStatus.OK)
+        @ResponseBody
+        public String curlCommand1 (final HttpServletRequest request, @RequestBody (required = false) final String body) {
+            return this.logRequest (request, body);
+        }
+
+        @RequestMapping (value = "/public/curlCommand2", produces = "text/plain;charset=utf-8")
+        @ResponseStatus (code = HttpStatus.OK)
+        @ResponseBody
+        public String curlCommand2 (final HttpServletRequest request, @RequestBody (required = false) final String body) {
+            return this.logRequest (request, body);
+        }
+
         @RequestMapping (value = "/public/noContent", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE, method = RequestMethod.GET)
         @ResponseStatus (code = HttpStatus.NO_CONTENT)
         @ResponseBody
@@ -102,6 +138,13 @@ public class RequestMonitor {
             return "";
         }
 
+        @RequestMapping (value = "/private/logged", produces = MediaType.TEXT_PLAIN_VALUE)
+        @ResponseStatus (code = HttpStatus.OK)
+        @ResponseBody
+        public String logged (final HttpServletRequest request, @RequestBody (required = false) final String body) {
+            return this.logRequest (request, body);
+        }
+
         private String logRequest (final HttpServletRequest request, final String body) {
             final StringBuilder curlLog = new StringBuilder("curl");
 
@@ -134,19 +177,29 @@ public class RequestMonitor {
             RequestMonitor.log.info (curlLog.toString ());
             return curlLog.toString ();
         }
-
-        @RequestMapping (produces = "text/plain;charset=utf-8")
+        @RequestMapping (value = "/public/v1/coverage/sncf/journeys", produces = "text/plain;charset=utf-8")
         @ResponseStatus (code = HttpStatus.OK)
         @ResponseBody
-        public String receiveRequest (final HttpServletRequest request, @RequestBody (required = false) final String body) {
+        public String coverage (final HttpServletRequest request, @RequestBody (required = false) final String body) {
             return this.logRequest (request, body);
         }
 
-        @RequestMapping (value = "/public/redirection", produces = MediaType.TEXT_PLAIN_VALUE)
+        @RequestMapping (value = "/public/redirection/notfound", produces = MediaType.TEXT_PLAIN_VALUE)
         @ResponseStatus (code = HttpStatus.FOUND)
         @ResponseBody
-        public String redirection (final HttpServletRequest request, final HttpServletResponse response, @RequestBody (required = false) final String body) {
-            response.setHeader ("Location", this.serverLocation (request) + "/public/redirectedThere");
+        public String redirectionNotFound (final HttpServletRequest request, final HttpServletResponse response,
+                                    @RequestBody (required = false) final String body) {
+            response.setHeader ("Location", this.serverLocation (request) + "/public/notfound");
+            this.logRequest (request, body);
+            return "";
+        }
+
+        @RequestMapping (value = "/public/redirection/found", produces = MediaType.TEXT_PLAIN_VALUE)
+        @ResponseStatus (code = HttpStatus.FOUND)
+        @ResponseBody
+        public String redirectionFound (final HttpServletRequest request, final HttpServletResponse response,
+                                    @RequestBody (required = false) final String body) {
+            response.setHeader ("Location", this.serverLocation (request) + "/public");
             this.logRequest (request, body);
             return "";
         }

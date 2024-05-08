@@ -16,7 +16,7 @@ import org.toilelibre.libe.curl.Curl;
 import org.toilelibre.libe.curl.CurlException;
 import org.toilelibre.libe.curl.CurlJavaOptions;
 import org.toilelibre.libe.curl.client.Client;
-import org.toilelibre.libe.curl.client.HttpClientProvider;
+import org.toilelibre.libe.curl.client.httpclient5.HttpClient5Provider;
 import org.toilelibre.libe.curl.http.Request;
 import org.toilelibre.libe.curl.http.Response;
 import org.toilelibre.libe.outside.monitor.RequestMonitor;
@@ -44,7 +44,7 @@ import static java.util.Arrays.asList;
 @Slf4j
 public class CurlTest {
 
-    private final Client httpClientProvider = HttpClientProvider.create();
+    private final Client httpClientProvider = HttpClient5Provider.create();
 
     private static final Integer proxyPort = Math.abs(new Random().nextInt()) % 20000 + 1024;
     private static ClientAndServer proxy;
@@ -63,7 +63,8 @@ public class CurlTest {
         if (System.getProperty("skipServer") == null) {
             RequestMonitor.stop();
             StupidHttpServer.stop();
-            proxy.stop();
+            if(proxy != null)
+                proxy.stop();
         }
     }
 
@@ -76,16 +77,15 @@ public class CurlTest {
     }
 
     private Response curl(final String requestCommand) {
-        return curl(requestCommand, CurlJavaOptions.with().build());
+        return curl(requestCommand, new CurlJavaOptions<>());
     }
 
-    private Response curl(final String requestCommand, CurlJavaOptions curlJavaOptions) {
-        return Curl.create(httpClientProvider).curl(String.format(requestCommand, RequestMonitor.port())
-                , curlJavaOptions);
+    private Response curl(final String requestCommand, CurlJavaOptions<Response> curlJavaOptions) {
+        return Curl.create(httpClientProvider).curl(String.format(requestCommand, RequestMonitor.port()), curlJavaOptions, response -> response);
     }
 
     private CompletableFuture<Response> curlAsync(final String requestCommand) {
-        return Curl.create(httpClientProvider).curlAsync(String.format(requestCommand, RequestMonitor.port()));
+        return Curl.create(httpClientProvider).curlAsync(String.format(requestCommand, RequestMonitor.port()), response -> response);
     }
 
     private void assertFound(final Response curlResponse) {
@@ -143,30 +143,26 @@ public class CurlTest {
 
     @Test
     public void theSkyIsBlueInIvritWithTheWrongEncoding() throws IOException {
-        try (Response response = this.curl("-k -E src/test/resources/clients/libe/libe.pem " +
-                "https://localhost:%d/public/  -H 'Content-Type: text/plain; charset=ISO-8859-1' -d \"השמים כחולים\"")) {
-            Assertions.assertThat(IOUtils.toString(response.body().asInputStream(), StandardCharsets.UTF_8)).contains(
-                    "'????? ??????'");
-        }
+        Response response = this.curl("-k -E src/test/resources/clients/libe/libe.pem " +
+                "https://localhost:%d/public/  -H 'Content-Type: text/plain; charset=ISO-8859-1' -d \"השמים כחולים\"");
+        Assertions.assertThat(response.body().getContentString(StandardCharsets.UTF_8))
+                .contains("'????? ??????'");
     }
 
     @Test
     public void theSkyIsBlueInIvritWithoutEncoding() throws IOException {
-        try (Response response = this.curl("-k -E src/test/resources/clients/libe/libe.pem " +
-                "https://localhost:%d/public/ -H 'Content-Type: text/plain' -d \"השמים כחולים\"")) {
-            Assertions.assertThat(IOUtils.toString(response.body().asInputStream(),
-                    Optional.of(response.getEncoding()).orElse(StandardCharsets.UTF_8))).contains(
-                    "'השמים כחולים'");
-        }
+        Response response = this.curl("-k -E src/test/resources/clients/libe/libe.pem " +
+                "https://localhost:%d/public/ -H 'Content-Type: text/plain' -d \"השמים כחולים\"");
+        Assertions.assertThat(response.body().getContentString(Optional.of(response.getEncoding()).orElse(StandardCharsets.UTF_8)))
+                .contains("'השמים כחולים'");
     }
 
     @Test
     public void theSkyIsBlueInIvritWithUTF8Encoding() throws IOException {
-        try (Response response = this.curl("-k -E src/test/resources/clients/libe/libe.pem " +
-                "https://localhost:%d/public/  -H 'Content-Type: text/plain; charset=UTF-8'  -d \"השמים כחולים\"")) {
-            Assertions.assertThat(IOUtils.toString(response.body().asInputStream(), StandardCharsets.UTF_8)).contains(
-                    "'השמים כחולים'");
-        }
+        Response response = this.curl("-k -E src/test/resources/clients/libe/libe.pem " +
+                "https://localhost:%d/public/  -H 'Content-Type: text/plain; charset=UTF-8'  -d \"השמים כחולים\"");
+        Assertions.assertThat(response.body().getContentString(StandardCharsets.UTF_8)).contains(
+                "'השמים כחולים'");
     }
 
     @Test
@@ -185,10 +181,10 @@ public class CurlTest {
     public void curlWithPlaceholders() {
         this.assertOk(this.curl("-k --cert-type $curl_placeholder_0 --cert $curl_placeholder_1 --key-type " +
                         "$curl_placeholder_2 --key $curl_placeholder_3 https://localhost:%d/public/",
-                CurlJavaOptions.with().placeHolders(asList("P12", "src/test/resources/clients/libe/libe" +
+                new CurlJavaOptions<Response>().addPlaceHolders(asList("P12", "src/test/resources/clients/libe/libe" +
                                 ".p12:mylibepass", "PEM",
                         "src" +
-                                "/test/resources/clients/libe/libe.pem")).build()));
+                                "/test/resources/clients/libe/libe.pem"))));
     }
 
     @Test
@@ -225,15 +221,27 @@ public class CurlTest {
     }
 
     @Test
-    public void curlToRedirectionWithFollowRedirectParam() {
+    public void curlToRedirectionWithFollowRedirectParamNotFound() throws IOException {
+        // 方法特别说明
+        // 接口 /public/redirection 中重定向到的URL本来是一个不存在的接口地址，这里应该返回401的
+        // 因为 MonitorController 中的 receiveRequest 托底了所有不存在的请求，所以最终请求到了这个方法，返回的是200状态码以及curl的字符串内容
+        this.assertUnauthorized(this.curl("-k -E src/test/resources/clients/libe/libe.pem -L " +
+                "https://localhost:%d/public/redirection/notfound"));
+    }
+
+    @Test
+    public void curlToRedirectionWithFollowRedirectParamFound() throws IOException {
+        // 方法特别说明
+        // 接口 /public/redirection 中重定向到的URL本来是一个不存在的接口地址，这里应该返回401的
+        // 因为 MonitorController 中的 receiveRequest 托底了所有不存在的请求，所以最终请求到了这个方法，返回的是200状态码以及curl的字符串内容
         this.assertOk(this.curl("-k -E src/test/resources/clients/libe/libe.pem -L " +
-                "https://localhost:%d/public/redirection"));
+                "https://localhost:%d/public/redirection/found"));
     }
 
     @Test
     public void curlToRedirectionWithoutFollowRedirectParam() {
         this.assertFound(this.curl("-k -E src/test/resources/clients/libe/libe.pem " +
-                "https://localhost:%d/public/redirection"));
+                "https://localhost:%d/public/redirection/found"));
     }
 
     @Test
@@ -254,10 +262,11 @@ public class CurlTest {
                 "src/test/resources/clients/libe/libe.pem:mylibepass --key-type P12 --key " +
                 "src/test/resources/clients/libe/libe.p12:mylibepass https://localhost:%d/public/"));
 
-        // correct cert password and wrong key password
-        try (Response response = this.curl("-k --cacert src/test/resources/ca/fakeCa.crt --cert-type PEM --cert " +
-                "src/test/resources/clients/libe/libe.pem:mylibepass --key-type P12 --key " +
-                "src/test/resources/clients/libe/libe.p12:mylibepass2 https://localhost:%d/public/");) {
+        try {
+            // correct cert password and wrong key password
+            Response response = this.curl("-k --cacert src/test/resources/ca/fakeCa.crt --cert-type PEM --cert " +
+                    "src/test/resources/clients/libe/libe.pem:mylibepass --key-type P12 --key " +
+                    "src/test/resources/clients/libe/libe.p12:mylibepass2 https://localhost:%d/public/");
             Assert.fail("This curl is not supposed to work and should fail with a IOException");
         } catch (CurlException curlException) {
             Assert.assertEquals(curlException.getCause().getClass().getName(),
@@ -277,7 +286,7 @@ public class CurlTest {
     @Test
     public void curlWithHeadersContainingColon() {
         this.assertOk(this.curl("-k -E src/test/resources/clients/libe/libe.pem -H'Host: localhost' -H'SOAPAction: " +
-                "action1:action2:action3' https://localhost:%d/public/test"));
+                "action1:action2:action3' https://localhost:%d/public"));
     }
 
     @Test
@@ -390,15 +399,15 @@ public class CurlTest {
 
     @Test
     public void withBinaryData() throws IOException {
-        try (Response response = this.curl("-k -E src/test/resources/clients/libe/libe.pem --data-binary " +
+        Response response = this.curl("-k -E src/test/resources/clients/libe/libe.pem --data-binary " +
                 "\"@src/test/resources/clients/libe/libe.der\" -X POST -H 'Accept: */*' -H 'Host: localhost' " +
-                "'https://localhost:%d/public/data'")) {
-            String expected =
-                    IOUtils.toString(Objects.requireNonNull(Thread.currentThread().getContextClassLoader().getResourceAsStream("clients/libe/libe.der")), StandardCharsets.UTF_8);
-            String fullCurl = IOUtils.toString(response.body().asInputStream(), StandardCharsets.UTF_8);
-            String actual = fullCurl.substring(fullCurl.indexOf("-d '") + 4, fullCurl.indexOf("'  'https"));
-            Assertions.assertThat(actual.length()).isEqualTo(expected.length());
-        }
+                "'https://localhost:%d/public/data'");
+        String expected =
+                IOUtils.toString(Objects.requireNonNull(Thread.currentThread().getContextClassLoader().getResourceAsStream("clients/libe/libe.der")), StandardCharsets.UTF_8);
+        String fullCurl = response.body().getContentString();
+
+        String actual = fullCurl.substring(fullCurl.indexOf("-d '") + 4, fullCurl.indexOf("'  'https"));
+        Assertions.assertThat(actual.length()).isEqualTo(expected.length());
     }
 
     @Test
@@ -498,7 +507,7 @@ public class CurlTest {
     @Test
     public void curlWithProxy() {
         this.assertOk(Curl.create(httpClientProvider).curl("-x http://localhost:" + proxyPort + " http" +
-                "://localhost:" + StupidHttpServer.port() + "/public/foo"));
+                "://localhost:" + StupidHttpServer.port() + "/public"));
     }
 
     @Test
@@ -508,8 +517,10 @@ public class CurlTest {
 
     @Test
     public void twoCurlsInParallel() {
-        final CompletableFuture<Response> future1 = this.curlAsync("-k -E src/test/resources/clients/libe/libe.pem https://localhost:%d/public/path1");
-        final CompletableFuture<Response> future2 = this.curlAsync("-k -E src/test/resources/clients/libe/libe.pem https://localhost:%d/public/path2");
+        final CompletableFuture<Response> future1 = this.curlAsync("-k -E src/test/resources/clients/libe/libe.pem " +
+                "https://localhost:%d/public/curlCommand1");
+        final CompletableFuture<Response> future2 = this.curlAsync("-k -E src/test/resources/clients/libe/libe.pem " +
+                "https://localhost:%d/public/curlCommand2");
 
         try {
             CompletableFuture.allOf(future1, future2).get();
@@ -556,14 +567,15 @@ public class CurlTest {
     @Test
     public void withAnInlinedInterceptor() {
         Curl curl = Curl.create(httpClientProvider);
-        curl.curl("http://www.baidu.com",
-                curl.javaOptionsBuilder().interceptor(((request, responseSupplier) -> {
-            log.info("I log something before the call");
-            Response response = responseSupplier.get();
-            log.info("I log something after the call... Bingo, the status of the response is " +
-                    response.status());
-            return response;
-        })).build());
+        String body = curl.curlToString("http://www.baidu.com",
+                new CurlJavaOptions<Response>().addInterceptor(((request, responseSupplier) -> {
+                    log.info("I log something before the call");
+                    Response response = responseSupplier.get();
+                    log.info("I log something after the call... Bingo, the status of the response is " +
+                            response.status());
+                    return response;
+                })));
+        System.out.println(body);
     }
 
     @Test

@@ -13,7 +13,7 @@ public final class Arguments {
 
     public final static Pattern ARGS_SPLIT_REGEX = Pattern.compile ("((?:(?:([^'\"\\s]+)(?=[\\s\"']))|(?:\"((?:[^\"]|(?<=\\\\)\")*)\"|(?:'((?:[^']|'(?! )[^']*')*)')|^[^\\s]+$|^[^\\s]+(?= )|(?<= )[^ ]+$)[^\\s\"']*))");
 
-    public final static Option  AUTH             = Arguments.add (Option.builder ("u").longOpt ("username").desc ("credentials").required (false).hasArg (true).desc ("user:password").build ());
+    public final static Option USER = Arguments.add (Option.builder ("u").longOpt ("user").desc ("credentials").required (false).hasArg (true).desc ("user:password").build ());
 
     public final static Option  CA_CERT          = Arguments.add (Option.builder ("cacert").longOpt ("cacert").desc ("CA certificate").required (false).hasArg (true).desc ("CA_CERT").build ());
 

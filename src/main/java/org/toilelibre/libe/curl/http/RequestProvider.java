@@ -36,41 +36,80 @@ import static java.util.stream.Collectors.toMap;
  */
 public class RequestProvider {
 
+    /**
+     * client
+     */
     private final Client client;
 
-    public static RequestProvider build(Client client){
+    /**
+     * build
+     *
+     * @param client client
+     * @return RequestProvider
+     */
+    public static RequestProvider build(Client client) {
         return new RequestProvider(client);
     }
 
+    /**
+     * RequestProvider
+     *
+     * @param client client
+     */
     public RequestProvider(Client client) {
         this.client = client;
     }
 
+    /**
+     * buildRequest
+     *
+     * @param commandLine commandLine
+     * @return Request
+     * @throws CurlException CurlException
+     */
     public Request buildRequest(final CommandLine commandLine) throws CurlException {
         String method = getMethod(commandLine);
         String uri = getUri(commandLine);
         ProxyInfo proxy = getProxy(commandLine);
-        Map<String, List<String>> headers = getHeaders(commandLine, proxy, client.defaultUserAgent());
+        Map<String, List<String>> headers = getHeaders(commandLine, proxy, client.userAgent());
         Request.Options options = getOptions(commandLine, proxy);
 
         RequestBody<?> body;
         // 即便是GET请求，如果用户还是设定了data，依然正常传递data，这里注释掉原来对Method的判断
-//        if (asList("DELETE", "PATCH", "POST", "PUT").contains(method.toUpperCase())) {
-            body = PayloadReader.getData(commandLine);
-//        }
+        // 条件：(asList("DELETE", "PATCH", "POST", "PUT").contains(method.toUpperCase()))
+        body = PayloadReader.getData(commandLine);
 
         return Request.create(HttpMethod.valueOf(method), uri, headers, body, options);
 
     }
 
+    /**
+     * getUri
+     *
+     * @param commandLine commandLine
+     * @return String
+     */
     private String getUri(CommandLine commandLine) {
         return commandLine.getArgs()[0];
     }
 
+    /**
+     * getMethod
+     *
+     * @param cl cl
+     * @return String
+     * @throws CurlException CurlException
+     */
     private String getMethod(final CommandLine cl) throws CurlException {
         return cl.getOptionValue(Arguments.HTTP_METHOD.getOpt()) == null ? determineVerbWithoutArgument(cl) : cl.getOptionValue(Arguments.HTTP_METHOD.getOpt());
     }
 
+    /**
+     * determineVerbWithoutArgument
+     *
+     * @param commandLine commandLine
+     * @return String
+     */
     private String determineVerbWithoutArgument(CommandLine commandLine) {
         if (commandLine.hasOption(Arguments.DATA.getOpt()) ||
                 commandLine.hasOption(Arguments.DATA_URLENCODED.getOpt()) ||
@@ -80,6 +119,14 @@ public class RequestProvider {
         return "GET";
     }
 
+    /**
+     * getHeaders
+     *
+     * @param commandLine      commandLine
+     * @param proxyInfo        proxyInfo
+     * @param defaultUserAgent defaultUserAgent
+     * @return Map
+     */
     private Map<String, List<String>> getHeaders(final CommandLine commandLine, ProxyInfo proxyInfo, String defaultUserAgent) {
         Map<String, List<String>> headersMap = new HashMap<>();
 
@@ -105,18 +152,15 @@ public class RequestProvider {
             headersMap.computeIfAbsent(Utils.USER_AGENT, k -> new ArrayList<>()).add(defaultUserAgent);
         }
 
-        if (commandLine.hasOption(Arguments.DATA_URLENCODED.getOpt())) {
+        // 1.直接判断 Arguments.DATA_URLENCODED
+        // 2.curl 在处理 POST 请求时，如没有明确指定 Content-Type，则默认为 application/x-www-form-urlencoded
+        if (commandLine.hasOption(Arguments.DATA_URLENCODED.getOpt())
+                || (commandLine.hasOption(Arguments.DATA.getOpt()) && !headersMap.containsKey(Utils.CONTENT_TYPE))) {
             headersMap.computeIfAbsent(Utils.CONTENT_TYPE, k -> new ArrayList<>()).add("application/x-www-form-urlencoded");
         }
-
-        // curl 在处理 POST 请求时，如没有明确指定 Content-Type，则默认为 application/x-www-form-urlencoded
-        if (commandLine.hasOption(Arguments.DATA.getOpt()) && !headersMap.containsKey(Utils.CONTENT_TYPE)) {
-            headersMap.computeIfAbsent(Utils.CONTENT_TYPE, k -> new ArrayList<>()).add("application/x-www-form-urlencoded");
-        }
-
         // 表单附件上传，且未明确设定Content-Type，则自动生成
-        if (commandLine.hasOption(Arguments.DATA.getOpt()) && !headersMap.containsKey(Utils.CONTENT_TYPE)) {
-            headersMap.computeIfAbsent(Utils.CONTENT_TYPE, k -> new ArrayList<>()).add("application/x-www-form-urlencoded");
+        if (commandLine.hasOption(Arguments.FORM.getOpt()) && !headersMap.containsKey(Utils.CONTENT_TYPE)) {
+            headersMap.computeIfAbsent(Utils.CONTENT_TYPE, k -> new ArrayList<>()).add("multipart/form-data; boundary=".concat(Utils.generateBoundary()));
         }
 
         if (commandLine.hasOption(Arguments.NO_KEEPALIVE.getOpt())) {
@@ -134,6 +178,12 @@ public class RequestProvider {
         return headersMap;
     }
 
+    /**
+     * getProxy
+     *
+     * @param commandLine commandLine
+     * @return ProxyInfo
+     */
     private ProxyInfo getProxy(final CommandLine commandLine) {
         String proxyUserString = null;
         // 代理用户
@@ -162,6 +212,13 @@ public class RequestProvider {
         return null;
     }
 
+    /**
+     * getOptions
+     *
+     * @param commandLine commandLine
+     * @param proxyInfo   proxyInfo
+     * @return Options
+     */
     private Request.Options getOptions(final CommandLine commandLine, ProxyInfo proxyInfo) {
         Request.Options options = new Request.Options();
         options.setProxy(proxyInfo);
@@ -173,23 +230,31 @@ public class RequestProvider {
         if (commandLine.hasOption(Arguments.MAX_TIME.getOpt())) {
             options.setMaxTimeout((int) ((Float.parseFloat(commandLine.getOptionValue(Arguments.MAX_TIME.getOpt()))) * 1000));
         }
-        // 处理auth
+
+        // 处理ntlm 和 auth user
         AuthCredentials authCredentials = null;
-        if (commandLine.getOptionValue(Arguments.AUTH.getOpt()) != null) {
-            final String[] authValue = commandLine.getOptionValue(Arguments.AUTH.getOpt()).split("(?<!\\\\):");
-            if (commandLine.hasOption(Arguments.NTLM.getOpt())) {
+        if (commandLine.hasOption(Arguments.NTLM.getOpt())) {
+            String uname = null;
+            String pwd = null;
+            String domain = null;
+            if (commandLine.getOptionValue(Arguments.USER.getOpt()) != null) {
+                final String[] authValue = commandLine.getOptionValue(Arguments.USER.getOpt()).split("(?<!\\\\):");
                 final String[] userName = authValue[0].split("\\\\");
-                try {
-                    authCredentials = new NTLMAuthCredentials(userName[1], authValue[1], InetAddress.getLocalHost().getHostName(), userName[0]);
-                } catch (final UnknownHostException e1) {
-                    throw new CurlException(e1);
-                }
-            } else {
-                String userName = authValue[0];
-                String password = authValue.length > 1 ? authValue[1] : null;
-                URI uri = URI.create(commandLine.getArgs()[0]);
-                authCredentials = new BasicAuthCredentials(userName, password, uri.getHost(), uri.getPort());
+                uname = userName[1];
+                pwd = authValue[1];
+                domain = userName[0];
             }
+            try {
+                authCredentials = new NTLMAuthCredentials(uname, pwd, InetAddress.getLocalHost().getHostName(), domain);
+            } catch (final UnknownHostException e1) {
+                throw new CurlException(e1);
+            }
+        } else if (commandLine.getOptionValue(Arguments.USER.getOpt()) != null) {
+            final String[] authValue = commandLine.getOptionValue(Arguments.USER.getOpt()).split("(?<!\\\\):");
+            String userName = authValue[0];
+            String password = authValue.length > 1 ? authValue[1] : null;
+            URI uri = URI.create(commandLine.getArgs()[0]);
+            authCredentials = new BasicAuthCredentials(userName, password, uri.getHost(), uri.getPort());
         }
         options.setAuthCredentials(authCredentials);
 
@@ -209,13 +274,19 @@ public class RequestProvider {
         return options;
     }
 
+    /**
+     * getSSLOptionsFromCommandLine
+     *
+     * @param commandLine commandLine
+     * @return Map
+     */
     private Map<SSLOption, List<String>> getSSLOptionsFromCommandLine(CommandLine commandLine) {
         Map<SSLOption, List<String>> sslOptionsMap = Stream.of(SSLOption.values())
                 .filter(option -> commandLine.hasOption(option.value()))
                 .collect(toMap(option -> option, option ->
                         asList(ofNullable(commandLine.getOptionValues(option.value()))
                                 .orElse(new String[]{"true"}))));
-        return sslOptionsMap.size() > 0 ? sslOptionsMap : null;
+        return !sslOptionsMap.isEmpty() ? sslOptionsMap : null;
     }
 
 }

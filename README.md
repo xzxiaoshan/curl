@@ -83,7 +83,7 @@ Supported arguments (so far) :
 
 | Short Name    | Long Name       | Argument Required | Description                                                                                                                                                 |
 | ------------- | --------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| u             | username        | true              | user:password                                                                                                                                               |
+| u             | user            | true              | user:password                                                                                                                                               |
 | cacert        | cacert          | true              | CA_CERT                                                                                                                                                     |
 | E             | cert            | true              | CERT[:password]                                                                                                                                             |
 | ct            | cert-type       | true              | PEM,P12,JKS,DER,ENG                                                                                                                                         |
@@ -113,4 +113,4 @@ Supported arguments (so far) :
 | k             | insecure        | false             | trust insecure                                                                                                                                              |
 | A             | user-agent      | true              | user agent                                                                                                                                                  |
 | V             | version         | false             | get the version of this library                                                                                                                             |
-| interceptor   | interceptor     | true              | interceptor field or method (syntax is classname::fieldname). Must be a BiFunction<Request, Supplier< Response>, Response> or will be discarded |
+| interceptor   | interceptor     | true              | interceptor field or method (syntax is classname::fieldname). Must be a BiFunction<HttpRequest, Supplier< HttpResponse>, HttpResponse> or will be discarded |

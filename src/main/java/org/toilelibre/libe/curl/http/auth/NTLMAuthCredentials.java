@@ -1,18 +1,45 @@
 package org.toilelibre.libe.curl.http.auth;
 
+import lombok.Getter;
+
 import java.util.Locale;
 
 /**
+ * NTLMAuthCredentials
+ *
  * @author shanhy
  * @date 2023-08-01 15:51
  */
 public class NTLMAuthCredentials implements AuthCredentials {
 
+    /**
+     * userName
+     */
+    @Getter
     private final String userName;
+    /**
+     * password
+     */
     private final String password;
+    /**
+     * workstation
+     */
+    @Getter
     private final String workstation;
+    /**
+     * domain
+     */
+    @Getter
     private final String domain;
 
+    /**
+     * NTLMAuthCredentials
+     *
+     * @param userName    userName
+     * @param password    password
+     * @param workstation workstation
+     * @param domain      domain
+     */
     public NTLMAuthCredentials(
             final String userName,
             final String password,
@@ -28,25 +55,23 @@ public class NTLMAuthCredentials implements AuthCredentials {
         this.domain = domain;
     }
 
-    public String getUserName() {
-        return userName;
-    }
-
-    public String getWorkstation() {
-        return workstation;
-    }
-
-    public String getDomain() {
-        return domain;
-    }
-
     @Override
     public AuthType getAuthType() {
-        return AuthType.NTML;
+        return AuthType.NTLM;
     }
 
     @Override
     public String getPassword() {
         return password;
+    }
+
+    @Override
+    public String toString() {
+        return "NTLMAuthCredentials{" +
+                "userName='" + userName + '\'' +
+                ", password='" + password + '\'' +
+                ", workstation='" + workstation + '\'' +
+                ", domain='" + domain + '\'' +
+                '}';
     }
 }

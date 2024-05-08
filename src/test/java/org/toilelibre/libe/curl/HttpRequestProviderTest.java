@@ -1,11 +1,9 @@
 package org.toilelibre.libe.curl;
 
 import org.apache.commons.cli.CommandLine;
-import org.apache.http.client.methods.HttpRequestBase;
-import org.apache.http.client.methods.HttpUriRequest;
 import org.junit.Test;
 import org.toilelibre.libe.curl.client.Client;
-import org.toilelibre.libe.curl.client.HttpClientProvider;
+import org.toilelibre.libe.curl.client.httpclient5.HttpClient5Provider;
 import org.toilelibre.libe.curl.http.Request;
 import org.toilelibre.libe.curl.http.RequestProvider;
 
@@ -15,7 +13,7 @@ import static org.junit.Assert.assertEquals;
 
 public class HttpRequestProviderTest {
 
-    private final Client httpClientProvider = HttpClientProvider.create();
+    private final Client httpClientProvider = HttpClient5Provider.create();
 
     @Test
     public void curlWithoutVerbAndWithoutDataShouldBeTransformedAsGetRequest() {

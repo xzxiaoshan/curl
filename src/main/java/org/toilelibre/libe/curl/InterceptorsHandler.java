@@ -38,19 +38,21 @@ public class InterceptorsHandler {
         }
     }
 
-    public Response handleInterceptors(Request request, Supplier<Response> realCall,
-                                       List<BiFunction<Request, Supplier<Response>, Response>> remainingInterceptors) {
-        if (remainingInterceptors.size() > 0) {
-            BiFunction<Request, Supplier<Response>, Response> nextInterceptor =
+    public <T> T handleInterceptors(Request request, Supplier<? extends T> realCall,
+                                       List<BiFunction<Request, Supplier<? extends T>, ? extends T>> remainingInterceptors) {
+        if (!remainingInterceptors.isEmpty()) {
+            BiFunction<Request, Supplier<? extends T>, ? extends T> nextInterceptor =
                     remainingInterceptors.get(0);
             return nextInterceptor.apply(request, () -> this.handleInterceptors(request, realCall,
                     remainingInterceptors.subList(1, remainingInterceptors.size())));
-        } else return realCall.get();
+        } else {
+            return realCall.get();
+        }
     }
 
     @SuppressWarnings("unchecked")
-    public List<BiFunction<Request, Supplier<Response>, Response>> getInterceptors(
-            final CommandLine commandLine, List<BiFunction<Request, Supplier<Response>, Response>> additionalInterceptors) {
+    public <T> List<BiFunction<Request, Supplier<? extends T>, ? extends T>> getInterceptors(
+            final CommandLine commandLine, List<BiFunction<Request, Supplier<? extends T>, ? extends T>> additionalInterceptors) {
         return
                 concat(stream(Optional.ofNullable(commandLine.getOptionValues(Arguments.INTERCEPTOR.getOpt())).orElse(new String[0]))
                         .map(methodName -> {
@@ -69,14 +71,14 @@ public class InterceptorsHandler {
                             }
                             final Object finalNewInstance = newInstance;
                             try {
-                                final BiFunction<Request, Supplier<Response>, Response> candidate =
+                                final BiFunction<Request, Supplier<? extends T>, ? extends T> candidate =
                                         stream(targetClass.getDeclaredFields()).filter(f ->
                                                         EXAMPLE_TYPE.equals(f.getGenericType()))
                                                 .findFirst()
                                                 .map(f -> {
                                                     try {
                                                         f.setAccessible(true);
-                                                        return (BiFunction<Request, Supplier<Response>, Response>) f.get(finalNewInstance);
+                                                        return (BiFunction<Request, Supplier<? extends T>, ? extends T>) f.get(finalNewInstance);
                                                     } catch (IllegalAccessException e) {
                                                         return null;
                                                     }
@@ -86,10 +88,10 @@ public class InterceptorsHandler {
                                 final Method targetMethod = stream(targetClass.getDeclaredMethods()).filter(m ->
                                         methodName.split("::")[1].equals(m.getName())).findFirst().orElse(null);
                                 if (targetMethod == null) return null;
-                                return (BiFunction<Request, Supplier<Response>, Response>)
+                                return (BiFunction<Request, Supplier<? extends T>, ? extends T>)
                                         (request, subsequentCall) -> {
                                             try {
-                                                return (Response) targetMethod.invoke(finalNewInstance,
+                                                return (T) targetMethod.invoke(finalNewInstance,
                                                         request,
                                                         subsequentCall);
                                             } catch (IllegalAccessException | InvocationTargetException e) {

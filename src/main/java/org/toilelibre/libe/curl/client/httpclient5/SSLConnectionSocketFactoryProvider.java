@@ -1,9 +1,9 @@
-package org.toilelibre.libe.curl.client;
+package org.toilelibre.libe.curl.client.httpclient5;
 
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
-import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.ssl.SSLContextBuilder;
+import org.apache.hc.client5.http.ssl.HttpsSupport;
+import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
+import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
+import org.apache.hc.core5.ssl.SSLContextBuilder;
 import org.toilelibre.libe.curl.CertFormat;
 import org.toilelibre.libe.curl.CurlException;
 import org.toilelibre.libe.curl.IOUtils;
@@ -18,6 +18,7 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Collections;
 import java.util.HashMap;
@@ -34,18 +35,17 @@ import static org.toilelibre.libe.curl.IOUtils.getFile;
  * @author shanhy
  * @date 2023-08-02 14:07
  */
-public final class HttpClientSSLHandler {
+public final class SSLConnectionSocketFactoryProvider {
 
-    private final static Map<Map<SSLOption, List<String>>, SSLConnectionSocketFactory> cachedSSLFactoriesForPerformance = new HashMap<>();
-
-    public void handle(final Map<SSLOption, List<String>> sslOptionsMap, final HttpClientBuilder executor) throws CurlException {
-        final SSLConnectionSocketFactory foundInCache = cachedSSLFactoriesForPerformance.get(sslOptionsMap);
-
-        if (foundInCache != null) {
-            executor.setSSLSocketFactory(foundInCache);
-            return;
-        }
-
+    /**
+     * create
+     *
+     * @param sslOptionsMap sslOptionsMap
+     * @return SSLConnectionSocketFactory
+     * @throws CurlException CurlException
+     */
+    public SSLConnectionSocketFactory create(Map<SSLOption, List<String>> sslOptionsMap) throws CurlException {
+        sslOptionsMap = sslOptionsMap == null ? new HashMap<>() : sslOptionsMap;
         final SSLContextBuilder builder = new SSLContextBuilder();
         builder.setProtocol(getProtocol(sslOptionsMap));
 
@@ -56,15 +56,21 @@ public final class HttpClientSSLHandler {
         final CertFormat certFormat = sslOptionsMap.containsKey(SSLOption.CERT_TYPE) ?
                 CertFormat.valueOf(sslOptionsMap.get(SSLOption.CERT_TYPE).get(0).toUpperCase()) :
                 CertFormat.PEM;
-        final HttpClientSSLHandler.CertPlusKeyInfo.Builder certAndKeysBuilder =
-                HttpClientSSLHandler.CertPlusKeyInfo.newBuilder()
-                        .cacert(sslOptionsMap.containsKey(SSLOption.CA_CERT) ?
-                                sslOptionsMap.get(SSLOption.CA_CERT).get(0) : null)
-                        .certFormat(certFormat)
-                        .keyFormat(sslOptionsMap.containsKey(SSLOption.KEY) ?
-                                sslOptionsMap.containsKey(SSLOption.KEY_TYPE) ?
-                                        CertFormat.valueOf(sslOptionsMap.get(SSLOption.KEY_TYPE).get(0).toUpperCase()) : CertFormat.PEM : certFormat);
-
+        final SSLConnectionSocketFactoryProvider.CertPlusKeyInfo.Builder certAndKeysBuilder;
+        if (sslOptionsMap.containsKey(SSLOption.KEY)) {
+            certAndKeysBuilder = CertPlusKeyInfo.newBuilder()
+                    .cacert(sslOptionsMap.containsKey(SSLOption.CA_CERT) ?
+                            sslOptionsMap.get(SSLOption.CA_CERT).get(0) : null)
+                    .certFormat(certFormat)
+                    .keyFormat(sslOptionsMap.containsKey(SSLOption.KEY_TYPE) ?
+                            CertFormat.valueOf(sslOptionsMap.get(SSLOption.KEY_TYPE).get(0).toUpperCase()) : CertFormat.PEM);
+        } else {
+            certAndKeysBuilder = CertPlusKeyInfo.newBuilder()
+                    .cacert(sslOptionsMap.containsKey(SSLOption.CA_CERT) ?
+                            sslOptionsMap.get(SSLOption.CA_CERT).get(0) : null)
+                    .certFormat(certFormat)
+                    .keyFormat(certFormat);
+        }
 
         if (sslOptionsMap.containsKey(SSLOption.CERT)) {
             final String entireOption = sslOptionsMap.get(SSLOption.CERT).get(0);
@@ -87,19 +93,24 @@ public final class HttpClientSSLHandler {
         }
 
         try {
-            final SSLConnectionSocketFactory sslSocketFactory = new SSLConnectionSocketFactory(builder.build(),
+            return new SSLConnectionSocketFactory(builder.build(),
                     sslOptionsMap.containsKey(SSLOption.TRUST_INSECURE) ? NoopHostnameVerifier.INSTANCE :
-                            SSLConnectionSocketFactory.getDefaultHostnameVerifier());
-            cachedSSLFactoriesForPerformance.put(sslOptionsMap, sslSocketFactory);
-            executor.setSSLSocketFactory(sslSocketFactory);
+                            HttpsSupport.getDefaultHostnameVerifier());
         } catch (NoSuchAlgorithmException | KeyManagementException e) {
             throw new CurlException(e);
         }
     }
 
 
+    /**
+     * addClientCredentials
+     *
+     * @param builder         builder
+     * @param certPlusKeyInfo certPlusKeyInfo
+     * @throws CurlException CurlException
+     */
     private void addClientCredentials(final SSLContextBuilder builder,
-                                      final HttpClientSSLHandler.CertPlusKeyInfo certPlusKeyInfo) throws CurlException {
+                                      final SSLConnectionSocketFactoryProvider.CertPlusKeyInfo certPlusKeyInfo) throws CurlException {
         try {
             final String keyPassword = certPlusKeyInfo.getKeyPassphrase() == null ?
                     certPlusKeyInfo.getCertPassphrase() : certPlusKeyInfo.getKeyPassphrase();
@@ -110,8 +121,19 @@ public final class HttpClientSSLHandler {
         }
     }
 
-    private KeyStore generateKeyStore(final HttpClientSSLHandler.CertPlusKeyInfo certPlusKeyInfo)
-            throws KeyStoreException, NoSuchAlgorithmException, java.security.cert.CertificateException, IOException, CurlException {
+    /**
+     * generateKeyStore
+     *
+     * @param certPlusKeyInfo certPlusKeyInfo
+     * @return KeyStore
+     * @throws KeyStoreException        KeyStoreException
+     * @throws NoSuchAlgorithmException NoSuchAlgorithmException
+     * @throws CertificateException     CertificateException
+     * @throws IOException              IOException
+     * @throws CurlException            CurlException
+     */
+    private KeyStore generateKeyStore(final SSLConnectionSocketFactoryProvider.CertPlusKeyInfo certPlusKeyInfo)
+            throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException, CurlException {
         final CertFormat certFormat = certPlusKeyInfo.getCertFormat();
         final File caCertFileObject = certPlusKeyInfo.getCacert() == null ? null : getFile(certPlusKeyInfo.getCacert());
         final File certFileObject = getFile(certPlusKeyInfo.getCert());
@@ -121,13 +143,15 @@ public final class HttpClientSSLHandler {
                 certPlusKeyInfo.getCertPassphrase().toCharArray();
         final char[] keyPasswordAsCharArray = certPlusKeyInfo.getKeyPassphrase() == null ? certPasswordAsCharArray :
                 certPlusKeyInfo.getKeyPassphrase().toCharArray();
-        final List<java.security.cert.Certificate> caCertificatesNotFiltered = caCertFileObject == null ?
+        final List<Certificate> caCertificatesNotFiltered = caCertFileObject == null ?
                 Collections.emptyList() :
                 certFormat.generateCredentialsFromFileAndPassword(CertFormat.Kind.CERTIFICATE,
                         IOUtils.toByteArray(caCertFileObject), keyPasswordAsCharArray);
-        final List<java.security.cert.Certificate> caCertificatesFiltered =
-                caCertificatesNotFiltered.stream().filter((certificate) -> (certificate instanceof X509Certificate) && (((X509Certificate) certificate).getBasicConstraints() != -1)).collect(toList());
-        final List<java.security.cert.Certificate> certificates =
+        final List<Certificate> caCertificatesFiltered =
+                caCertificatesNotFiltered.stream()
+                        .filter(certificate -> (certificate instanceof X509Certificate) && (((X509Certificate) certificate).getBasicConstraints() != -1))
+                        .collect(toList());
+        final List<Certificate> certificates =
                 certFormat.generateCredentialsFromFileAndPassword(CertFormat.Kind.CERTIFICATE,
                         IOUtils.toByteArray(certFileObject), certPasswordAsCharArray);
         final List<PrivateKey> privateKeys =
@@ -136,8 +160,8 @@ public final class HttpClientSSLHandler {
 
         final KeyStore keyStore = KeyStore.getInstance("JKS");
         keyStore.load(null);
-        final java.security.cert.Certificate[] certificatesAsArray =
-                certificates.toArray(new java.security.cert.Certificate[0]);
+        final Certificate[] certificatesAsArray =
+                certificates.toArray(new Certificate[0]);
         IntStream.range(0, certificates.size()).forEach(i -> setCertificateEntry(keyStore, certificates, i));
         IntStream.range(0, caCertificatesFiltered.size()).forEach(i -> setCaCertificateEntry(keyStore,
                 caCertificatesFiltered, i));
@@ -146,11 +170,23 @@ public final class HttpClientSSLHandler {
         return keyStore;
     }
 
+    /**
+     * getSslSeparatorIndex
+     *
+     * @param entireOption entireOption
+     * @return data
+     */
     private int getSslSeparatorIndex(String entireOption) {
         return entireOption.matches("^[A-Za-z]:\\\\") && entireOption.lastIndexOf(':') == 1 ? -1 :
                 entireOption.lastIndexOf(':');
     }
 
+    /**
+     * getProtocol
+     *
+     * @param sslOptions sslOptions
+     * @return String
+     */
     private String getProtocol(final Map<SSLOption, List<String>> sslOptions) {
         if (sslOptions != null) {
             if (sslOptions.containsKey(SSLOption.TLS_V1)) {
@@ -172,9 +208,16 @@ public final class HttpClientSSLHandler {
                 return "SSLv3";
             }
         }
-        return "TLS";
+//        return "TLS";
+        return "TLSv1.3";
     }
 
+    /**
+     * setTrustInsecure
+     *
+     * @param builder builder
+     * @throws CurlException CurlException
+     */
     private void setTrustInsecure(final SSLContextBuilder builder) throws CurlException {
         try {
             builder.loadTrustMaterial(null, (chain, authType) -> true);
@@ -183,8 +226,15 @@ public final class HttpClientSSLHandler {
         }
     }
 
+    /**
+     * setCaCertificateEntry
+     *
+     * @param keyStore     keyStore
+     * @param certificates certificates
+     * @param i            i
+     */
     private void setCaCertificateEntry(final KeyStore keyStore,
-                                       final List<java.security.cert.Certificate> certificates, final int i) {
+                                       final List<Certificate> certificates, final int i) {
         try {
             keyStore.setCertificateEntry("ca-cert-alias-" + i, certificates.get(i));
         } catch (final KeyStoreException e) {
@@ -192,8 +242,15 @@ public final class HttpClientSSLHandler {
         }
     }
 
+    /**
+     * setCertificateEntry
+     *
+     * @param keyStore     keyStore
+     * @param certificates certificates
+     * @param i            i
+     */
     private void setCertificateEntry(final KeyStore keyStore,
-                                     final List<java.security.cert.Certificate> certificates, final int i) {
+                                     final List<Certificate> certificates, final int i) {
         try {
             keyStore.setCertificateEntry("cert-alias-" + i, certificates.get(i));
         } catch (final KeyStoreException e) {
@@ -201,6 +258,15 @@ public final class HttpClientSSLHandler {
         }
     }
 
+    /**
+     * setPrivateKeyEntry
+     *
+     * @param keyStore            keyStore
+     * @param privateKeys         privateKeys
+     * @param passwordAsCharArray passwordAsCharArray
+     * @param certificatesAsArray certificatesAsArray
+     * @param i                   i
+     */
     private void setPrivateKeyEntry(final KeyStore keyStore, final List<PrivateKey> privateKeys,
                                     final char[] passwordAsCharArray, final Certificate[] certificatesAsArray, final int i) {
         try {
@@ -210,16 +276,48 @@ public final class HttpClientSSLHandler {
         }
     }
 
+    /**
+     * CertPlusKeyInfo
+     *
+     * @author 单红宇
+     * @date 2024-05-06 18:45:13
+     */
     static class CertPlusKeyInfo {
 
+        /**
+         * certFormat
+         */
         private final CertFormat certFormat;
+        /**
+         * keyFormat
+         */
         private final CertFormat keyFormat;
+        /**
+         * cert
+         */
         private final String cert;
+        /**
+         * certPassphrase
+         */
         private final String certPassphrase;
+        /**
+         * cacert
+         */
         private final String cacert;
+        /**
+         * key
+         */
         private final String key;
+        /**
+         * keyPassphrase
+         */
         private final String keyPassphrase;
 
+        /**
+         * CertPlusKeyInfo
+         *
+         * @param builder builder
+         */
         private CertPlusKeyInfo(Builder builder) {
             certFormat = builder.certFormat;
             keyFormat = builder.keyFormat;
@@ -230,86 +328,203 @@ public final class HttpClientSSLHandler {
             keyPassphrase = builder.keyPassphrase;
         }
 
+        /**
+         * newBuilder
+         *
+         * @return Builder
+         */
         static Builder newBuilder() {
             return new Builder();
         }
 
+        /**
+         * getCertFormat
+         *
+         * @return CertFormat
+         */
         CertFormat getCertFormat() {
             return certFormat;
         }
 
+        /**
+         * getKeyFormat
+         *
+         * @return CertFormat
+         */
         CertFormat getKeyFormat() {
             return keyFormat;
         }
 
+        /**
+         * getCert
+         *
+         * @return String
+         */
         String getCert() {
             return cert;
         }
 
+        /**
+         * getCertPassphrase
+         *
+         * @return String
+         */
         String getCertPassphrase() {
             return certPassphrase;
         }
 
+        /**
+         * getCacert
+         *
+         * @return String
+         */
         String getCacert() {
             return cacert;
         }
 
+        /**
+         * getKey
+         *
+         * @return String
+         */
         String getKey() {
             return key;
         }
 
+        /**
+         * getKeyPassphrase
+         *
+         * @return String
+         */
         String getKeyPassphrase() {
             return keyPassphrase;
         }
 
 
+        /**
+         * Builder
+         *
+         * @author 单红宇
+         * @date 2024-05-06 18:45:13
+         */
         static final class Builder {
+            /**
+             * certFormat
+             */
             private CertFormat certFormat;
+            /**
+             * keyFormat
+             */
             private CertFormat keyFormat;
+            /**
+             * cert
+             */
             private String cert;
+            /**
+             * certPassphrase
+             */
             private String certPassphrase;
+            /**
+             * cacert
+             */
             private String cacert;
+            /**
+             * key
+             */
             private String key;
+            /**
+             * keyPassphrase
+             */
             private String keyPassphrase;
 
+            /**
+             * Builder
+             */
             private Builder() {
             }
 
+            /**
+             * certFormat
+             *
+             * @param val val
+             * @return Builder
+             */
             Builder certFormat(CertFormat val) {
                 certFormat = val;
                 return this;
             }
 
+            /**
+             * keyFormat
+             *
+             * @param val val
+             * @return Builder
+             */
             Builder keyFormat(CertFormat val) {
                 keyFormat = val;
                 return this;
             }
 
+            /**
+             * cert
+             *
+             * @param val val
+             * @return Builder
+             */
             Builder cert(String val) {
                 cert = val;
                 return this;
             }
 
+            /**
+             * certPassphrase
+             *
+             * @param val val
+             * @return Builder
+             */
             Builder certPassphrase(String val) {
                 certPassphrase = val;
                 return this;
             }
 
+            /**
+             * cacert
+             *
+             * @param val val
+             * @return Builder
+             */
             Builder cacert(String val) {
                 cacert = val;
                 return this;
             }
 
+            /**
+             * key
+             *
+             * @param val val
+             * @return Builder
+             */
             Builder key(String val) {
                 key = val;
                 return this;
             }
 
+            /**
+             * keyPassphrase
+             *
+             * @param val val
+             * @return Builder
+             */
             Builder keyPassphrase(String val) {
                 keyPassphrase = val;
                 return this;
             }
 
+            /**
+             * build
+             *
+             * @return CertPlusKeyInfo
+             */
             CertPlusKeyInfo build() {
                 return new CertPlusKeyInfo(this);
             }

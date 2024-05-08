@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -42,6 +43,9 @@ import static java.lang.String.format;
  */
 public final class Utils {
 
+    /**
+     * MULTIPART_CHARS
+     */
     private static final char[] MULTIPART_CHARS =
             "-_1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray();
 
@@ -195,7 +199,7 @@ public final class Utils {
         if (iterable instanceof Collection) {
             collection = (Collection<T>) iterable;
         } else {
-            collection = new ArrayList<T>();
+            collection = new ArrayList<>();
             for (T element : iterable) {
                 collection.add(element);
             }
@@ -343,8 +347,8 @@ public final class Utils {
      * @return value of boundary
      */
     public static  String generateBoundary() {
+        final ThreadLocalRandom rand = ThreadLocalRandom.current();
         final StringBuilder buffer = new StringBuilder();
-        final Random rand = new Random();
         final int count = rand.nextInt(11) + 30; // a random size from 30 to 40
         for (int i = 0; i < count; i++) {
             buffer.append(MULTIPART_CHARS[rand.nextInt(MULTIPART_CHARS.length)]);
