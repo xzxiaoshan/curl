@@ -27,6 +27,8 @@ public final class Arguments {
 
     public final static Option  DATA             = Arguments.add (Option.builder ("d").longOpt ("data").desc ("Data").required (false).hasArg ().argName ("payload").build ());
 
+    public final static Option  DATA_RAW         = Arguments.add (Option.builder ("dataraw").longOpt ("data-raw").desc ("Data").required (false).hasArg ().argName ("payload").build ());
+
     public final static Option  DATA_BINARY      = Arguments.add (Option.builder ("databinary").longOpt ("data-binary").desc ("http post binary data").required (false).hasArg ().argName ("payload").build ());
 
     public final static Option  DATA_URLENCODED   = Arguments.add (Option.builder ("dataurlencode").longOpt ("data-urlencode").desc ("Data to URLEncode").required (false).hasArg ().argName ("payload").build ());

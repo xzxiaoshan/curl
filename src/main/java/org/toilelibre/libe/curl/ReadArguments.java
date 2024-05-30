@@ -1,7 +1,6 @@
 package org.toilelibre.libe.curl;
 
 import org.apache.commons.cli.*;
-import org.toilelibre.libe.curl.Curl.*;
 
 import java.util.*;
 import java.util.regex.*;
@@ -22,7 +21,7 @@ public final class ReadArguments {
     }
 
     static CommandLine getCommandLineFromRequest (final String requestCommand, final List<String> placeholderValues,
-        final Map<String, List<String>> argMatches) {
+                                                  final Map<String, List<String>> argMatches) {
 
         // configure a parser
         final DefaultParser parser = new DefaultParser ();
@@ -47,12 +46,75 @@ public final class ReadArguments {
      * @return 匹配的正则字符串集合
      */
     private static List<String> asMatches (Pattern regex, String input) {
-        Matcher matcher = regex.matcher (input);
-        List<String> result = new ArrayList<> ();
-        while (matcher.find ()){
-            result.add (matcher.group (1));
+        try{
+            Matcher matcher = regex.matcher (input);
+            List<String> result = new ArrayList<> ();
+            while (matcher.find ()){
+                result.add (matcher.group (1));
+            }
+            return result;
+        }catch(StackOverflowError ex){
+            return asMatches(input);
         }
-        return result;
+    }
+
+    /**
+     * 通过特定规则拆解返回字符串集合
+     *
+     * @param input 输入值
+     * @return 拆解后的字符串集合
+     */
+    private static List<String> asMatches(String input){
+        List<String> list = new ArrayList<>();
+        StringBuilder singleArg = new StringBuilder();
+        boolean inQuotation  = false;
+        char[] characters = input.toCharArray();
+        String start = "";
+        for(int i = 0; i<characters.length; i++) {
+            char c = characters[i];
+            // 不在引号内且当前的是空格
+            if(!inQuotation  && Character.isWhitespace(c)){
+                if (singleArg.length() > 0) {
+                    list.add(singleArg.toString());
+                    singleArg.setLength(0);
+                }
+                // 当前是 ' 下一个字符是 { ，是开头且不在引号内（以 ' 为开头的参数）
+            }else if(c == '\'' && !inQuotation  && characters[i+1] == '{'){
+                start = "'{";
+                inQuotation  = true;
+                singleArg.append(c);
+                // 当前是 ' 下一个字符不是 { ，是开头且不在引号内（以 '{ 为开头的参数）
+            }else if(c == '\'' && !inQuotation  && characters[i+1] != '{'){
+                start = "'";
+                inQuotation  = true;
+                singleArg.append(c);
+                // 当前是 \ 下一个字符是 " ，是开头且不在引号内（以 " 为开头的参数）
+            }else if(c == '\\' && characters[i+1] == '\"' && !inQuotation ){
+                start = "\\";
+                inQuotation  = true;
+                singleArg.append(c + '\"');
+                i++;
+                // 起始是 ' ，当前是 ' ，前一个字符不是 } ，在引号内，且是最终字符或下一个是空格（以 ' 为开头的参数，以 ' 结尾）
+            }else if(start == "'" && c == '\'' && inQuotation  && characters[i-1] != '}' && (i == characters.length-1 || Character.isWhitespace(characters[i+1]))){
+                inQuotation  = false;
+                singleArg.append(c);
+                // 起始是 '{ ，当前是 ' ，前一个字符是 } ，在引号内，且是最终字符或下一个是空格（以 '{ 为开头的参数，以 }' 结尾）
+            }else if(start == "'{" && c == '\'' && inQuotation  && characters[i-1] == '}' && (i == characters.length-1 || Character.isWhitespace(characters[i+1]))){
+                inQuotation  = false;
+                singleArg.append(c);
+                // 起始是 \ ，当前是 \ ，后一个字符是 " ，在引号内，且下一个是空格（以 " 为开头的参数，以 " 结尾）
+            }else if(start == "\\" && c == '\\' && characters[i+1] == '\"' && inQuotation  && Character.isWhitespace(characters[i+1])){
+                inQuotation  = false;
+                singleArg.append(c + '\"');
+                i++;
+            }else {
+                singleArg.append(c);
+            }
+        }
+        if (singleArg.length() > 0) {
+            list.add(singleArg.toString());
+        }
+        return list;
     }
 
 
