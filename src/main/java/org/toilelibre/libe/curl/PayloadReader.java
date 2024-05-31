@@ -34,6 +34,8 @@ public final class PayloadReader {
         RequestBody<?> bodyData = null;
         if (commandLine.hasOption(Arguments.DATA.getOpt())) {
             bodyData = simpleData(commandLine);
+        } else if (commandLine.hasOption(Arguments.DATA_RAW.getOpt())) {
+            bodyData = rawData(commandLine);
         } else if (commandLine.hasOption(Arguments.DATA_BINARY.getOpt())) {
             bodyData = binaryData(commandLine);
         } else if (commandLine.hasOption(Arguments.DATA_URLENCODED.getOpt())) {
@@ -48,6 +50,21 @@ public final class PayloadReader {
         try {
             Charset encoding = charsetReadFromThe(commandLine).orElse(Utils.UTF_8);
             return new DataBody(commandLine.getOptionValue(Arguments.DATA.getOpt()).getBytes(encoding), RequestBodyType.DATA, encoding);
+        } catch (final IllegalArgumentException e) {
+            throw new CurlException(e);
+        }
+    }
+
+    private static RequestBody<byte[]> rawData(CommandLine commandLine) {
+        try {
+            Charset encoding = charsetReadFromThe(commandLine).orElse(Utils.UTF_8);
+            final String value = commandLine.getOptionValue(Arguments.DATA_RAW.getOpt());
+            if(value.startsWith("@")){
+                byte[] data = dataBehind(value);
+                return new DataBody(data, RequestBodyType.DATA, encoding);
+            }else{
+                return new DataBody(value.getBytes(encoding), RequestBodyType.DATA, encoding);
+            }
         } catch (final IllegalArgumentException e) {
             throw new CurlException(e);
         }

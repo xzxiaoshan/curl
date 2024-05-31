@@ -112,6 +112,7 @@ public class RequestProvider {
      */
     private String determineVerbWithoutArgument(CommandLine commandLine) {
         if (commandLine.hasOption(Arguments.DATA.getOpt()) ||
+                commandLine.hasOption(Arguments.DATA_RAW.getOpt()) ||
                 commandLine.hasOption(Arguments.DATA_URLENCODED.getOpt()) ||
                 commandLine.hasOption(Arguments.FORM.getOpt())) {
             return "POST";
@@ -155,7 +156,8 @@ public class RequestProvider {
         // 1.直接判断 Arguments.DATA_URLENCODED
         // 2.curl 在处理 POST 请求时，如没有明确指定 Content-Type，则默认为 application/x-www-form-urlencoded
         if (commandLine.hasOption(Arguments.DATA_URLENCODED.getOpt())
-                || (commandLine.hasOption(Arguments.DATA.getOpt()) && !headersMap.containsKey(Utils.CONTENT_TYPE))) {
+                || ((commandLine.hasOption(Arguments.DATA.getOpt()) || commandLine.hasOption(Arguments.DATA_RAW.getOpt()))
+                && !headersMap.containsKey(Utils.CONTENT_TYPE))) {
             headersMap.computeIfAbsent(Utils.CONTENT_TYPE, k -> new ArrayList<>()).add("application/x-www-form-urlencoded");
         }
         // 表单附件上传，且未明确设定Content-Type，则自动生成
