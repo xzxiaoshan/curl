@@ -46,20 +46,16 @@ public final class ReadArguments {
      * @return 匹配的正则字符串集合
      */
     private static List<String> asMatches (Pattern regex, String input) {
-        try{
-            Matcher matcher = regex.matcher (input);
-            List<String> result = new ArrayList<> ();
-            while (matcher.find ()){
-                result.add (matcher.group (1));
-            }
-            return result;
-        }catch(StackOverflowError ex){
-            return asMatches(input);
+        Matcher matcher = regex.matcher (input);
+        List<String> result = new ArrayList<> ();
+        while (matcher.find ()){
+            result.add (matcher.group (1));
         }
+        return result;
     }
 
     /**
-     * 通过特定规则拆解返回字符串集合
+     * 通过特定规则拆解判断拆解后是否有过长字符串，并返回字符串集合
      *
      * @param input 输入值
      * @return 拆解后的字符串集合
@@ -67,13 +63,19 @@ public final class ReadArguments {
     private static List<String> asMatches(String input){
         List<String> list = new ArrayList<>();
         StringBuilder singleArg = new StringBuilder();
+        // 是否在引号内
         boolean inQuotation  = false;
         char[] characters = input.toCharArray();
         String start = "";
+        // 是否有过长字符串
+        boolean flag = false;
         for(int i = 0; i<characters.length; i++) {
             char c = characters[i];
             // 不在引号内且当前的是空格
             if(!inQuotation  && Character.isWhitespace(c)){
+                if (singleArg.length() > 1000) {
+                    flag = true;
+                }
                 if (singleArg.length() > 0) {
                     list.add(singleArg.toString());
                     singleArg.setLength(0);
@@ -102,8 +104,8 @@ public final class ReadArguments {
             }else if(start == "'{" && c == '\'' && inQuotation  && characters[i-1] == '}' && (i == characters.length-1 || Character.isWhitespace(characters[i+1]))){
                 inQuotation  = false;
                 singleArg.append(c);
-                // 起始是 \ ，当前是 \ ，后一个字符是 " ，在引号内，且下一个是空格（以 " 为开头的参数，以 " 结尾）
-            }else if(start == "\\" && c == '\\' && characters[i+1] == '\"' && inQuotation  && Character.isWhitespace(characters[i+1])){
+                // 起始是 \ ，当前是 \ ，后一个字符是 " ，在引号内，且是最终双引号或下一个是空格（以 " 为开头的参数，以 " 结尾）
+            }else if(start == "\\" && c == '\\' && characters[i+1] == '\"' && inQuotation  && (i+1 == characters.length-1 || Character.isWhitespace(characters[i+1]))){
                 inQuotation  = false;
                 singleArg.append(c + '\"');
                 i++;
@@ -114,7 +116,10 @@ public final class ReadArguments {
         if (singleArg.length() > 0) {
             list.add(singleArg.toString());
         }
-        return list;
+        if(singleArg.length() > 1000 || flag){
+            return list;
+        }
+        return asMatches (Arguments.ARGS_SPLIT_REGEX, input);
     }
 
 
@@ -126,7 +131,7 @@ public final class ReadArguments {
         if (argMatches.containsKey (requestCommandInput)) {
             matches = argMatches.get (requestCommandInput);
         }else{
-            matches = asMatches (Arguments.ARGS_SPLIT_REGEX, requestCommandInput);
+            matches = asMatches (requestCommandInput);
             argMatches.put (requestCommandInput, matches);
         }
 
